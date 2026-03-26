@@ -83,8 +83,9 @@ class Detector {
 			b.isKinematic !== true &&
 			bodyA.shapes.length > 0 &&
 			bodyB.shapes.length > 0 &&
-			!(bodyA.isStatic === true && bodyB.isStatic === true)
-			// Collision mask check moved to shape level for more granular control
+			!(bodyA.isStatic === true && bodyB.isStatic === true) &&
+			(bodyA.collisionMask & bodyB.collisionType) !== 0 &&
+			(bodyB.collisionMask & bodyA.collisionType) !== 0
 		);
 	}
 

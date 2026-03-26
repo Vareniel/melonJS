@@ -74,10 +74,10 @@ export class Rect extends Polygon {
 	/**
 	 * width of the Rectangle
 	 */
-	get width() {
+	override get width() {
 		return this.points[2].x;
 	}
-	set width(value) {
+	override set width(value) {
 		this.points[1].x = this.points[2].x = value;
 		this.recalc();
 		this.updateBounds();
@@ -86,10 +86,10 @@ export class Rect extends Polygon {
 	/**
 	 * height of the Rectangle
 	 */
-	get height() {
+	override get height() {
 		return this.points[2].y;
 	}
-	set height(value) {
+	override set height(value) {
 		this.points[2].y = this.points[3].y = value;
 		this.recalc();
 		this.updateBounds();

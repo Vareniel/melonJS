@@ -1,6 +1,6 @@
+import CanvasRenderTarget from "../../renderTarget/canvasrendertarget.js";
 import fragmentNoiseSource from "../shaders/noise.frag";
 import vertexNoiseSource from "../shaders/noise.vert";
-import { CanvasRenderTarget } from "./canvasRenderTarget.js";
 
 let sharedRenderTarget = null;
 let sharedNoiseProgram = null;

@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/restrict-plus-operands */
 import { clamp } from "../math/math.js";
@@ -121,7 +122,6 @@ class Timer {
 	 * @param fn - the function you want to execute after delay milliseconds.
 	 * @param delay - the number of milliseconds (thousandths of a second) that the function call should be delayed by.
 	 * @param pausable - respects the pause state of the engine.
-	 * @param isPersistent - if true, the timer will not be cleared when the stage changes. Use with caution to avoid memory leaks.
 	 * @param args - optional parameters which are passed through to the function specified by fn once the timer expires.
 	 * @returns a positive integer value which identifies the timer created by the call to setTimeout(), which can be used later with me.timer.clearTimeout().
 	 * @example
@@ -133,11 +133,15 @@ class Timer {
 	setTimeout(
 		fn: (...args: any[]) => void,
 		delay: number,
-		pausable: boolean,
-		isPersistent: boolean = false,
+		pausable: boolean = true,
 		...args: any[]
 	) {
-		const id = setTimeout(fn, delay, ...args);
+		let id: ReturnType<typeof globalThis.setTimeout>;
+		const wrappedFn = () => {
+			fn(...args);
+			this.clearNativeTimer(id);
+		};
+		id = globalThis.setTimeout(wrappedFn, delay);
 		this.timers.push({
 			id,
 			type: "timeout",
@@ -145,8 +149,8 @@ class Timer {
 			fn,
 			delay,
 			args,
-			pausable: pausable || true,
-			isPersistent: isPersistent || false,
+			pausable,
+			isPersistent: false,
 			startTime: performance.now(),
 		});
 		return id;
@@ -157,7 +161,6 @@ class Timer {
 	 * @param fn - the function to execute
 	 * @param delay - the number of milliseconds (thousandths of a second) on how often to execute the function
 	 * @param pausable - respects the pause state of the engine
-	 * @param isPersistent - if true, the timer will not be cleared when the stage changes. Use with caution to avoid memory leaks
 	 * @param args - optional parameters which are passed through to the function specified by fn once the timer expires.
 	 * @returns a numeric, non-zero value which identifies the timer created by the call to setInterval(), which can be used later with me.timer.clearInterval().
 	 * @example
@@ -169,11 +172,10 @@ class Timer {
 	setInterval(
 		fn: (...args: any[]) => void,
 		delay: number,
-		pausable: boolean,
-		isPersistent: boolean,
+		pausable: boolean = true,
 		...args: any[]
 	) {
-		const id = setInterval(fn, delay, ...args);
+		const id = globalThis.setInterval(fn, delay, ...args);
 		this.timers.push({
 			id,
 			type: "interval",
@@ -181,8 +183,8 @@ class Timer {
 			fn,
 			delay,
 			args,
-			pausable: pausable || true,
-			isPersistent: isPersistent || false,
+			pausable,
+			isPersistent: false,
 		});
 		return id;
 	}
@@ -205,10 +207,29 @@ class Timer {
 		this.clearNativeTimer(id);
 	}
 
-	clearNativeTimer(id: number) {
+	clearNativeTimer(id: number | ReturnType<typeof setTimeout>) {
 		this.timers = this.timers.filter(
 			(timer) => !(timer.native && timer.id === id),
 		);
+	}
+
+	/**
+	 * Cancels a timer (timeout or interval) previously established by setTimeout() or setInterval().
+	 * @param timerId - ID of the timer to be cancelled
+	 */
+	clearTimer(timerId: ReturnType<typeof globalThis.setTimeout>) {
+		for (let i = 0, len = this.timers.length; i < len; i++) {
+			if (this.timers[i].id === timerId) {
+				const timer = this.timers[i];
+				if (timer.type === "interval") {
+					globalThis.clearInterval(timerId);
+				} else {
+					globalThis.clearTimeout(timerId);
+				}
+				this.timers.splice(i, 1);
+				break;
+			}
+		}
 	}
 
 	pauseNative() {
@@ -325,19 +346,6 @@ class Timer {
 				: 1;
 
 		this.updateTimers();
-	}
-
-	/**
-	 * clear Timers
-	 * @ignore
-	 */
-	clearTimer(timerId: number) {
-		for (let i = 0, len = this.timers.length; i < len; i++) {
-			if (this.timers[i].timerId === timerId) {
-				this.timers.splice(i, 1);
-				break;
-			}
-		}
 	}
 
 	/**

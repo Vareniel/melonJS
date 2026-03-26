@@ -44,7 +44,7 @@ export default class UISpriteElement extends Sprite {
 	hover: boolean;
 
 	// object has been updated (clicked,etc..)
-	holdTimeout: number;
+	holdTimeout: NodeJS.Timeout | number;
 	released: boolean;
 
 	/**
@@ -88,7 +88,7 @@ export default class UISpriteElement extends Sprite {
 		this.holdThreshold = 250;
 		this.isHoldable = false;
 		this.hover = false;
-		this.holdTimeout = -1;
+		this.holdTimeout = -1 as any;
 		this.released = true;
 
 		// enable event detection
@@ -105,7 +105,7 @@ export default class UISpriteElement extends Sprite {
 			this.isDirty = true;
 			this.released = false;
 			if (this.isHoldable) {
-				timer.clearTimer(this.holdTimeout);
+				timer.clearTimer(this.holdTimeout as any);
 				this.holdTimeout = timer.setTimeout(
 					() => {
 						this.hold();
@@ -176,7 +176,7 @@ export default class UISpriteElement extends Sprite {
 		if (!this.released) {
 			this.released = true;
 			this.isDirty = true;
-			timer.clearTimer(this.holdTimeout);
+			timer.clearTimer(this.holdTimeout as any);
 			this.holdTimeout = -1;
 			return this.onRelease(event);
 		}
@@ -197,7 +197,7 @@ export default class UISpriteElement extends Sprite {
 	 * @ignore
 	 */
 	hold(): void {
-		timer.clearTimer(this.holdTimeout);
+		timer.clearTimer(this.holdTimeout as any);
 		this.holdTimeout = -1;
 		this.isDirty = true;
 		if (!this.released) {
@@ -245,7 +245,7 @@ export default class UISpriteElement extends Sprite {
 		releasePointerEvent("pointercancel", this);
 		releasePointerEvent("pointerenter", this);
 		releasePointerEvent("pointerleave", this);
-		timer.clearTimer(this.holdTimeout);
+		timer.clearTimer(this.holdTimeout as any);
 		this.holdTimeout = -1;
 	}
 }

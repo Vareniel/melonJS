@@ -156,7 +156,7 @@ export default class UITextButton extends UIBaseElement {
 		this.addChild(this.bitmapText);
 	}
 
-	override draw(renderer: Renderer): void {
+	override draw(renderer: Renderer, viewport: any): void {
 		const r = renderer as any;
 		if (this.hover) {
 			r.setColor(this.hoverOnColor);
@@ -166,6 +166,6 @@ export default class UITextButton extends UIBaseElement {
 		r.fill(this.border);
 		r.setColor(this.borderStrokeColor);
 		r.stroke(this.border);
-		super.draw(renderer as any);
+		super.draw(renderer, viewport);
 	}
 }
