@@ -334,6 +334,20 @@ export const ONCONTEXT_LOST = "renderer.contextlost";
  */
 export const ONCONTEXT_RESTORED = "renderer.contextrestored";
 
+/**
+ * Event for when a collision starts between two bodies <br>
+ * Data passed : {object} collision event object, containing the two colliding bodies and other information
+ * @see event.on
+ */
+export const ONCOLLISION_ENTER = "collisionstart";
+
+/**
+ * Event for when a collision ends between two bodies <br>
+ * Data passed : {object} collision event object, containing the two colliding bodies and other information
+ * @see event.on
+ */
+export const ONCOLLISION_EXIT = "collisionexit";
+
 interface Events {
 	[DOM_READY]: () => void;
 	[BOOT]: () => void;

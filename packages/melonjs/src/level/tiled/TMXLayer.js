@@ -100,7 +100,10 @@ export default class TMXLayer extends Renderable {
 		this.tilesets = tilesets;
 
 		// the default tileset (used as cache in cellAt)
-		this.tileset = this.tilesets ? this.tilesets.getTilesetByIndex(0) : null;
+		// this.tileset = this.tilesets ? this.tilesets.getTilesetByIndex(0) : null;
+		this.tileset = this.tilesets
+			? this.tilesets.getTilesetByName(data.tilesetName)
+			: null;
 
 		// Biggest tile size to draw
 		this.maxTileSize = {

@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { getBinary, getImage } from "../../loader/loader.js";
 import { Color } from "../../math/color.ts";
 import { vector2dPool } from "../../math/vector2d.ts";
@@ -16,6 +18,7 @@ export default class BitmapText extends Renderable {
 	 * @param {object} settings - the text configuration
 	 * @param {string|Image} settings.font - a font name to identify the corresponing source image
 	 * @param {string} [settings.fontData=settings.font] - the bitmap font data corresponding name, or the bitmap font data itself
+	 * @param {string} [settings.font] - the bitmap font data corresponding name, or the bitmap font data itself
 	 * @param {number} [settings.size] - size a scaling ratio
 	 * @param {Color|string} [settings.fillStyle] - a CSS color value used to tint the bitmapText (@see BitmapText.tint)
 	 * @param {number} [settings.lineWidth=1] - line width, in pixels, when drawing stroke
@@ -24,6 +27,7 @@ export default class BitmapText extends Renderable {
 	 * @param {number} [settings.lineHeight=1.0] - line spacing height
 	 * @param {Vector2d} [settings.anchorPoint={x:0.0, y:0.0}] - anchor point to draw the text at
 	 * @param {number} [settings.wordWrapWidth] - the maximum length in CSS pixel for a single segment of text
+	 * @param {number} [settings.rotation] - the maximum length in CSS pixel for a single segment of text
 	 * @param {(string|string[])} [settings.text] - a string, or an array of strings
 	 * @example
 	 * // Use me.loader.preload or me.loader.load to load assets
@@ -42,6 +46,14 @@ export default class BitmapText extends Renderable {
 	constructor(x, y, settings) {
 		// call the parent constructor
 		super(x, y, settings.width || 0, settings.height || 0);
+
+		this.warned = false;
+
+		/**
+		 * The display name or identifier for this object.
+		 * Defaults to an empty string if no name is provided in the settings object.
+		 */
+		this.name = settings.name || "";
 
 		/**
 		 * Set the default text alignment (or justification),<br>
@@ -99,6 +111,11 @@ export default class BitmapText extends Renderable {
 			typeof settings.font === "object"
 				? settings.font
 				: getImage(settings.font);
+
+		/**
+		 * Rotate bitmap text
+		 */
+		this.rotate(settings.rotation ?? 0);
 
 		if (typeof settings.fontData !== "string") {
 			/**
@@ -234,7 +251,7 @@ export default class BitmapText extends Renderable {
 			}
 
 			// translate the bounds accordingly
-			bounds.translate(ax, ay);
+			bounds.translate(0, 0);
 		}
 
 		if (absolute === true) {
@@ -399,9 +416,14 @@ export default class BitmapText extends Renderable {
 					x += (glyph.xadvance + kerning) * scaleX;
 					lastGlyph = glyph;
 				} else {
-					console.warn(
-						"BitmapText: no defined Glyph in for " + String.fromCharCode(ch),
-					);
+					if (!this.warned) {
+						console.warn(
+							"BitmapText: no defined Glyph in for " + String.fromCharCode(ch),
+							`text: "${this._text}"`,
+							`fontData: ${JSON.stringify(this.fontData)}`,
+						);
+						this.warned = true;
+					}
 				}
 			}
 			// increment line

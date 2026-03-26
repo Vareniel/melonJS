@@ -29,6 +29,12 @@ export default class TMXTilesetGroup {
 		return this.tilesets[i];
 	}
 
+	getTilesetByName(name) {
+		return this.tilesets.find((tile) => {
+			return tile.name === name;
+		});
+	}
+
 	/**
 	 * return the tileset corresponding to the specified id <br>
 	 * will throw an exception if no matching tileset is found

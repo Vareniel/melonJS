@@ -1,7 +1,7 @@
 import { randomFloat } from "./../math/math.ts";
 import Container from "./../renderable/container.js";
+import pool from "../system/legacy_pool.js";
 import CanvasRenderTarget from "../video/rendertarget/canvasrendertarget.js";
-import { particlePool } from "./particle.ts";
 import ParticleEmitterSettings from "./settings.js";
 
 /**
@@ -51,6 +51,9 @@ export default class ParticleEmitter extends Container {
 
 	/** @ignore */
 	_defaultParticle: CanvasRenderTarget | undefined;
+	particleLife: any;
+	spawnInterval: number;
+	spawnTimer: number;
 
 	/**
 	 * @param x - x position of the particle emitter
@@ -125,6 +128,11 @@ export default class ParticleEmitter extends Container {
 
 		// Reset the emitter to defaults
 		this.reset(settings);
+
+		// convert angle from degree to radians
+		this.settings.angle = this.settings.angle * (Math.PI / 180);
+		this.settings.angleVariation =
+			this.settings.angleVariation * (Math.PI / 180);
 	}
 
 	/**
@@ -168,7 +176,12 @@ export default class ParticleEmitter extends Container {
 	addParticles(count: number): void {
 		for (let i = 0; i < count; i++) {
 			// Add particle to the container
-			this.addChild(particlePool.get(this), (this.pos as any).z);
+			if (this.settings.spriteName)
+				this.addChild(
+					pool.pull(this.settings.spriteName, this),
+					(this.pos as any).z,
+				);
+			else this.addChild(pool.pull("Particle", this), (this.pos as any).z);
 		}
 		this.isDirty = true;
 	}
@@ -217,6 +230,26 @@ export default class ParticleEmitter extends Container {
 	 * @ignore
 	 */
 	override update(dt: number): boolean {
+		const firstParticle = (this.children ?? [])[0];
+		if (
+			firstParticle &&
+			typeof firstParticle === "object" &&
+			"life" in firstParticle
+		) {
+			this.particleLife = firstParticle.life || 0;
+			if (this.particleLife < 20) {
+				this.particleLife = 0;
+			}
+		}
+
+		// remove ParticleEmitter from world when using burstParticle
+		if (!this._stream && this.particleLife === 0) {
+			if (this.ancestor instanceof Container) {
+				this.ancestor.removeChild(this);
+			}
+			return false;
+		}
+
 		// skip frames if necessary
 		if (++this._updateCount > this.settings.framesToSkip) {
 			this._updateCount = 0;
@@ -245,27 +278,38 @@ export default class ParticleEmitter extends Container {
 				}
 			}
 
-			// Increase the emitter launcher timer
-			this._frequencyTimer += dt;
+			if (this.spawnInterval === 0) {
+				const lifeTime = Number(this.settings.lifeTime) || 0;
+				const totalParticles = Math.max(
+					1,
+					Number(this.settings.totalParticles) || 1,
+				);
+				this.spawnInterval = lifeTime / totalParticles;
+				this.spawnTimer = 0;
+			}
 
-			// Check for new particles launch
-			const particlesCount = this.children?.length ?? 0;
-			if (
-				particlesCount < this.settings.totalParticles &&
-				this._frequencyTimer >= this.settings.frequency
-			) {
-				if (
-					particlesCount + (this.settings.maxParticles as number) <=
-					this.settings.totalParticles
-				) {
-					this.addParticles(this.settings.maxParticles);
-				} else {
-					this.addParticles(this.settings.totalParticles - particlesCount);
+			// Tambah spawn timer
+			this.spawnTimer += dt;
+
+			// Check apakah sudah waktunya spawn
+			while (this.spawnTimer >= this.spawnInterval) {
+				const particlesCount = (this.children ?? []).length;
+
+				// Cek apakah masih bisa spawn
+				if (particlesCount < this.settings.totalParticles) {
+					this.addParticles(1); // Spawn 1 partikel
+					this.isDirty = true;
 				}
-				this._frequencyTimer = 0;
-				this.isDirty = true;
+
+				this.spawnTimer -= this.spawnInterval;
+
+				// Safety break untuk menghindari infinite loop
+				if (this.spawnTimer < this.spawnInterval) {
+					break;
+				}
 			}
 		}
+
 		return this.isDirty;
 	}
 

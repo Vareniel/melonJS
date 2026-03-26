@@ -318,6 +318,23 @@ export class Matrix2d {
 	}
 
 	/**
+	 * scale the matrix
+	 * @param w - a number representing the abscissa of the scaling vector.
+	 * @param h - a number representing the ordinate of the scaling vector.
+	 * @param currentHeight - the current height of the object to be resized
+	 * @param currentWidth - the current width of the object to be resized
+	 * @returns Reference to this object for method chaining
+	 */
+	resizeObject(w: number, h = w, currentHeight: number, currentWidth: number) {
+		const a = this.val;
+
+		a[0] = (a[0] * w) / currentWidth;
+		a[4] = (a[4] * h) / currentHeight;
+
+		return this;
+	}
+
+	/**
 	 * adds a 2D scaling transformation.
 	 * @param v - scaling vector
 	 * @returns Reference to this object for method chaining

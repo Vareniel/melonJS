@@ -252,9 +252,22 @@ export default class Body {
 	 * // add a shape from a JSON object
 	 * this.body.addShape(me.loader.getJSON("shapesdef").banana);
 	 */
-	addShape(shape) {
+	addShape(
+		shape,
+		options = { name: "rect", color: "red", isTrigger: false, isActive: true },
+	) {
+		shape.name = options.name;
+		shape.debugColor = options.color;
+		shape.isTrigger = options.isTrigger;
+		shape.isActive = options.isActive;
 		if (shape instanceof Rect || shape instanceof Bounds) {
 			const poly = shape.toPolygon();
+			poly.name = options.name;
+			poly.debugColor = options.color;
+			poly.collisionType = shape.collisionType;
+			poly.collisionMask = shape.collisionMask;
+			poly.isTrigger = options.isTrigger;
+			poly.isActive = options.isActive ?? shape.isActive;
 			this.shapes.push(poly);
 			// update the body bounds
 			this.bounds.add(poly.points);
@@ -377,6 +390,122 @@ export default class Body {
 	 */
 	getShape(index) {
 		return this.shapes[index || 0];
+	}
+
+	/**
+	 * return array of the collision shapes at the given type
+	 * @param {string} [index=0] - the shape object at the specified index
+	 * @returns {Array} shapes of object if defined
+	 */
+	getShapeByType(type) {
+		return this.shapes.filter((e) => {
+			return e.type === type;
+		});
+	}
+
+	/**
+	 * return array of the collision shapes at the given type
+	 * @param {string} [index=0] - the shape object at the specified index
+	 * @returns {Array} shapes of object if defined
+	 */
+	getShapeByName(name) {
+		return this.shapes.find((e) => {
+			return e.name === name;
+		});
+	}
+
+	/**
+	 * Toggle active state of one or more collision shapes
+	 * @param {number|string|object|Array} target - index | name | shape object | array of them
+	 * @param {boolean} [force] - true = active, false = inactive
+	 * @returns {boolean|Array|null} new isActive state(s) or null if not found
+	 */
+	toggleShapeActive(target, force) {
+		// normalize to array
+		const targets = Array.isArray(target) ? target : [target];
+		const results = [];
+
+		targets.forEach((t) => {
+			let shape = null;
+
+			if (typeof t === "number") {
+				shape = this.getShape(t);
+			} else if (typeof t === "string") {
+				shape = this.getShapeByName(t);
+			} else if (t && t.isActive !== undefined) {
+				shape = t;
+			}
+
+			if (!shape) {
+				results.push(null);
+				return;
+			}
+
+			if (typeof force === "boolean") {
+				shape.isActive = force;
+			} else {
+				shape.isActive = !shape.isActive;
+			}
+
+			results.push(shape.isActive);
+		});
+
+		// return single value if single target
+		return Array.isArray(target) ? results : results[0];
+	}
+
+	/*
+	 * Enable (activate) a collision shape.
+	 * This will force the shape's `isActive` property to `true`.
+	 *
+	 * @param {number|string|object} target
+	 *        Shape identifier:
+	 *        - number : index of the shape
+	 *        - string : name of the shape
+	 *        - object : shape object reference
+	 * @returns {boolean|null}
+	 *          Returns the new `isActive` state,
+	 *          or null if the target shape is not found.
+	 */
+	enableShape(target) {
+		return this.toggleShapeActive(target, true);
+	}
+
+	/*
+	 * Disable (deactivate) a collision shape.
+	 * This will force the shape's `isActive` property to `false`.
+	 *
+	 * @param {number|string|object} target
+	 *        Shape identifier:
+	 *        - number : index of the shape
+	 *        - string : name of the shape
+	 *        - object : shape object reference
+	 * @returns {boolean|null}
+	 *          Returns the new `isActive` state,
+	 *          or null if the target shape is not found.
+	 */
+	disableShape(target) {
+		return this.toggleShapeActive(target, false);
+	}
+
+	/*
+	 * Toggle active state for all collision shapes.
+	 * If `force` is provided, all shapes will be set
+	 * to the same active state.
+	 *
+	 * @param {boolean} [force]
+	 *        - true  : enable all shapes
+	 *        - false : disable all shapes
+	 *        - undefined : toggle each shape individually
+	 */
+	toggleAllShapes(force) {
+		this.shapes.forEach((s) => {
+			if (typeof force === "boolean") {
+				s.isActive = force;
+			} else {
+				s.isActive = !s.isActive;
+			}
+		});
 	}
 
 	/**

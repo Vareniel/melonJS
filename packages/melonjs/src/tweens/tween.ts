@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { game } from "../index.js";
 import { eventEmitter, STATE_RESUME } from "../system/event.js";
 import { createPool } from "../system/pool.ts";
@@ -227,9 +228,14 @@ export default class Tween {
 				].concat(endValue);
 			}
 
-			this._valuesStart[property] = (this._object as Record<string, unknown>)[
-				property
-			];
+			try {
+				this._valuesStart[property] = (this._object as Record<string, unknown>)[
+					property
+				];
+			} catch (e) {
+				this.stop();
+				return false;
+			}
 
 			if (!Array.isArray(this._valuesStart[property])) {
 				(this._valuesStart[property] as number) *= 1.0; // Ensures we're using numbers, not strings
@@ -385,9 +391,23 @@ export default class Tween {
 
 				// protect against non numeric properties.
 				if (typeof end === "number") {
-					// @ts-expect-error todo
-					// eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-					this._object[property] = start + (end - start) * value;
+					// // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
+					if (
+						!(property in this._object) ||
+						!Number.isFinite(start as number)
+					) {
+						this.stop();
+						return false;
+					}
+
+					const nextVal = (start as number) + (end - (start as number)) * value;
+
+					try {
+						(this._object as Record<string, unknown>)[property] = nextVal;
+					} catch (e) {
+						this.stop();
+						return false;
+					}
 				}
 			}
 		}

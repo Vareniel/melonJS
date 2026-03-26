@@ -68,6 +68,12 @@ export class Polygon {
 	type = "Polygon";
 
 	/**
+	 * Whether this shape is active for collision detection.
+	 * @default true
+	 */
+	isActive = true;
+
+	/**
 	 * @param [x=0] - origin point of the Polygon
 	 * @param [y=0] - origin point of the Polygon
 	 * @param vertices - array of vector defining the Polygon
@@ -83,13 +89,55 @@ export class Polygon {
 	}
 
 	/**
+	 * x position of the shape
+	 */
+	get x() {
+		return this.pos.x;
+	}
+
+	set x(value) {
+		this.pos.x = value;
+	}
+
+	/**
+	 * y position of the shape
+	 */
+	get y() {
+		return this.pos.y;
+	}
+
+	set y(value) {
+		this.pos.y = value;
+	}
+
+	/**
+	 * width of the shape
+	 */
+	get width() {
+		const xValues = this.points.map((point) => point.x);
+		return Math.max(...xValues) - Math.min(...xValues);
+	}
+
+	/**
+	 * height of the shape
+	 */
+	get height() {
+		const yValues = this.points.map((point) => point.y);
+		return Math.max(...yValues) - Math.min(...yValues);
+	}
+
+	/**
 	 * set new value to the Polygon
 	 * @param x - position of the Polygon
 	 * @param y - position of the Polygon
 	 * @param points - array of vector or vertices defining the Polygon
 	 * @returns this instance for object chaining
 	 */
-	setShape(x: number, y: number, points: PolygonVertices | LineVertices) {
+	setShape(
+		x = this.pos.x,
+		y = this.pos.y,
+		points: PolygonVertices | LineVertices,
+	) {
 		this.pos.set(x, y);
 		this.setVertices(points);
 		return this;

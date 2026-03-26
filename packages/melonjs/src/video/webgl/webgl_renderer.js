@@ -534,7 +534,7 @@ export default class WebGLRenderer extends Renderer {
 	 * // Clip the image and position the clipped part on the canvas:
 	 * renderer.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
 	 */
-	drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh) {
+	drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh, image2 = undefined) {
 		if (typeof sw === "undefined") {
 			sw = dw = image.width;
 			sh = dh = image.height;
@@ -567,8 +567,14 @@ export default class WebGLRenderer extends Renderer {
 		}
 
 		// force reuploading if the given image is a HTMLVideoElement
-		const reupload = typeof image.videoWidth !== "undefined";
+		const reupload =
+			typeof image.videoWidth !== "undefined" ||
+			image instanceof HTMLCanvasElement;
 		const texture = this.cache.get(image);
+		let texture2;
+		if (typeof image2 !== "undefined") {
+			texture2 = this.cache.get(image2);
+		}
 		const uvs = texture.getUVs(sx, sy, sw, sh);
 		this.currentBatcher.addQuad(
 			texture,
@@ -582,6 +588,7 @@ export default class WebGLRenderer extends Renderer {
 			uvs[3],
 			this.currentTint.toUint32(this.getGlobalAlpha()),
 			reupload,
+			texture2,
 		);
 
 		if (typeof shader === "object") {

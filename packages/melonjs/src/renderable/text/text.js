@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Color, colorPool } from "../../math/color.ts";
 import { nextPowerOfTwo } from "../../math/math.ts";
 import pool from "../../system/legacy_pool.js";
@@ -17,6 +19,7 @@ import setContextStyle from "./textstyle.js";
 
 const runits = ["ex", "em", "pt", "px"];
 const toPX = [12, 24, 0.75, 1];
+let textCanvasTarget = null;
 
 /**
  * a generic system font object.
@@ -37,6 +40,7 @@ export default class Text extends Renderable {
 	 * @param {number} [settings.lineHeight=1.0] - line spacing height
 	 * @param {Vector2d} [settings.anchorPoint={x:0.0, y:0.0}] - anchor point to draw the text at
 	 * @param {number} [settings.wordWrapWidth] - the maximum length in CSS pixel for a single segment of text
+	 * @param {number} [settings.wordWrapHeight] - the maximum height in CSS pixel for a single segment of text
 	 * @param {(string|string[])} [settings.text=""] - a string, or an array of strings
 	 * @example
 	 * let font = new me.Text(0, 0, {font: "Arial", size: 8, fillStyle: this.color});
@@ -149,6 +153,7 @@ export default class Text extends Renderable {
 		this.lineHeight = settings.lineHeight || 1.0;
 		this.wordWrapWidth = settings.wordWrapWidth || -1;
 		this.fontSize = 10;
+		this.rotate(settings.rotate || 0);
 
 		// anchor point
 		if (typeof settings.anchorPoint !== "undefined") {
@@ -176,15 +181,30 @@ export default class Text extends Renderable {
 		// the canvas Texture used to render this text
 		// offscreenCanvas is currently disabled for text rendering due to issue in WebGL mode
 		// see https://github.com/melonjs/melonJS/issues/1180
-		this.canvasTexture = new CanvasRenderTarget(2, 2, {
-			offscreenCanvas: false,
-		});
+		if (!textCanvasTarget) {
+			textCanvasTarget = new CanvasRenderTarget(2, 2, {
+				offscreenCanvas: false,
+			});
+			this.canvasTexture = textCanvasTarget;
+		} else {
+			this.canvasTexture = textCanvasTarget;
+		}
 
 		// instance to text metrics functions
 		this.metrics = new TextMetrics(this);
 
 		// set the text
 		this.setText(settings.text);
+
+		// set scale if defined
+		if (settings.scaleX || settings.scaleY) {
+			this.scale(settings.scaleX, settings.scaleY);
+			this._scaleX = settings.scaleX;
+			this._scaleY = settings.scaleY;
+		}
+
+		// set alpha
+		this.alpha = settings.alpha ?? 1;
 	}
 
 	/**
@@ -304,7 +324,7 @@ export default class Text extends Renderable {
 			this.canvasTexture.context,
 			this._text,
 			this.pos.x - this.metrics.x,
-			this.pos.y - this.metrics.y,
+			0,
 		);
 
 		this.isDirty = true;
@@ -320,6 +340,69 @@ export default class Text extends Renderable {
 	 */
 	measureText(renderer, text = this._text) {
 		return this.metrics.measureText(text, this.canvasTexture.context);
+	}
+
+	/**
+	 * update the bounding box for Text.
+	 * @param {boolean} [absolute=true] - update the bounds size and position in (world) absolute coordinates
+	 * @returns {Bounds} this Text bounding box Rectangle object
+	 */
+	updateBounds(absolute = true) {
+		let bounds = this.getBounds();
+
+		bounds.clear();
+
+		if (typeof this.metrics !== "undefined") {
+			let ax, ay;
+
+			bounds.addBounds(this.measureText());
+
+			switch (this.textAlign) {
+				case "right":
+					ax = this.metrics.width * 1.0;
+					break;
+
+				case "center":
+					ax = this.metrics.width * 0.5;
+					break;
+
+				default:
+					ax = 0; //this.metrics.width * 0.0;
+					break;
+			}
+
+			// adjust y pos based on alignment value
+			switch (this.textBaseline) {
+				case "middle":
+					ay = this.metrics.height * 0.5;
+					break;
+
+				case "ideographic":
+				case "alphabetic":
+				case "bottom":
+					ay = this.metrics.height * 1.0;
+					break;
+
+				default:
+					ay = 0; //this.metrics.height * 0.0;
+					break;
+			}
+
+			// translate the bounds accordingly
+			bounds.translate(0, 0);
+		}
+
+		if (absolute === true) {
+			if (
+				typeof this.ancestor !== "undefined" &&
+				typeof this.ancestor.getAbsolutePosition === "function" &&
+				this.floating !== true
+			) {
+				bounds.translate(this.ancestor.getAbsolutePosition());
+			}
+		}
+
+		return bounds;
 	}
 
 	/**
@@ -374,6 +457,9 @@ export default class Text extends Renderable {
 	 */
 	_drawFont(context, text, x, y) {
 		setContextStyle(context, this);
+
+		// Pastikan context baseline selalu TOP untuk penggambaran baris manual
+		context.textBaseline = "top";
 
 		for (let i = 0; i < text.length; i++) {
 			const string = text[i].trimEnd();

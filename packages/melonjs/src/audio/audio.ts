@@ -263,6 +263,10 @@ export function play(
 	}
 }
 
+export function getTrack() {
+	return audioTracks;
+}
+
 /**
  * Fade a currently playing sound between two volumes.
  * @param sound_name - audio clip name - case sensitive
@@ -464,6 +468,22 @@ export function stop(sound_name?: string, id?: number): void {
 	}
 }
 
+export function stopAll() {
+	for (const sound_name in audioTracks) {
+		const sound = audioTracks[sound_name];
+		if (sound) {
+			// stop all instances of the sound
+			sound.stop();
+
+			// remove all 'end' event listeners for this sound
+			sound.off("end");
+		}
+	}
+
+	// As a fallback, stop everything via Howler global stop
+	Howler.stop();
+}
+
 /**
  * pause the specified sound on all channels<br>
  * this function does not reset the currentTime property
@@ -593,6 +613,25 @@ export function setVolume(volume: number): void {
  */
 export function getVolume(): number {
 	return Howler.volume();
+}
+
+/**
+ * set specific audio volume
+ * @param sound_name - audio clip name - case sensitive.
+ * @param volume - Float specifying volume (0.0 - 1.0 values accepted).
+ */
+export function setAudioVolume(sound_name: string, volume: number) {
+	const sound = audioTracks[sound_name];
+	sound.volume(volume);
+}
+
+/**
+ * get specific audio volume
+ * @param sound_name - audio clip name - case sensitive.
+ */
+export function getAudioVolume(sound_name: string) {
+	const sound = audioTracks[sound_name];
+	return sound.volume();
 }
 
 /**

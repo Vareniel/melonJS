@@ -1,5 +1,5 @@
 import { polygonPool } from "../../geometries/polygon.ts";
-import { game } from "../../index.js";
+import { game, Light2d, state } from "../../index.js";
 import { warning } from "../../lang/console.js";
 import { colorPool } from "../../math/color.ts";
 import { vector2dPool } from "../../math/vector2d.ts";
@@ -337,6 +337,7 @@ export default class TMXTileMap {
 	addTo(container, flatten, setViewportBounds) {
 		const _sort = container.autoSort;
 		const _depth = container.autoDepth;
+		let _lightID = 0;
 
 		const levelBounds = this.getBounds();
 
@@ -355,7 +356,21 @@ export default class TMXTileMap {
 
 		// add all Object instances
 		this.getObjects(flatten).forEach((object) => {
-			container.addChild(object);
+			if (object instanceof Light2d) {
+				const drawAsStageLight = object.drawAs === "LIGHT";
+				if (drawAsStageLight) {
+					state.current().lights.set("Light_" + _lightID, object);
+					object.lightID = "Light_" + _lightID;
+					_lightID++;
+				} else {
+					container.lights.set("Light_" + _lightID, object);
+					object.lightID = "Light_" + _lightID;
+					_lightID++;
+					container.addChild(object);
+				}
+			} else {
+				container.addChild(object);
+			}
 		});
 
 		// resize the container accordingly
@@ -418,9 +433,14 @@ export default class TMXTileMap {
 			// check if this is the collision shape group
 			isCollisionGroup = group.name.toLowerCase().includes(COLLISION_GROUP);
 
-			if (flatten === false) {
+			if (flatten === false || group.type === "group") {
 				// create a new container
-				targetContainer = new Container(0, 0, this.width, this.height);
+				targetContainer = new Container(
+					group.x,
+					group.y,
+					this.width,
+					this.height,
+				);
 
 				// tiled uses 0,0 by default
 				targetContainer.anchorPoint.set(0, 0);
@@ -540,7 +560,7 @@ export default class TMXTileMap {
 				}
 
 				//apply group opacity value to the child objects if group are merged
-				if (flatten !== false) {
+				if (flatten !== false && group.type !== "group") {
 					if (obj.isRenderable === true) {
 						obj.setOpacity(obj.getOpacity() * group.opacity);
 						// and to child renderables if any
@@ -562,7 +582,10 @@ export default class TMXTileMap {
 			}
 
 			// if we created a new container
-			if (flatten === false && targetContainer.children.length > 0) {
+			if (
+				(flatten === false || group.type === "group") &&
+				targetContainer.children.length > 0
+			) {
 				// re-enable auto-sort and auto-depth
 				targetContainer.autoSort = true;
 				targetContainer.autoDepth = true;

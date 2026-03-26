@@ -1,5 +1,9 @@
 import VertexArrayBuffer from "../buffer/vertex.js";
 import GLShader from "../glshader.js";
+import quadFragmentLight from "../shaders/light.frag";
+import quadVertexLight from "../shaders/light.vert";
+import quadFragmentSpineLight from "../shaders/spineLight.frag";
+import quadVertexSpineLight from "../shaders/spineLight.vert";
 
 /**
  * additional import for TypeScript
@@ -58,6 +62,18 @@ export class Batcher {
 		 * @type {GLShader}
 		 */
 		this.defaultShader = undefined;
+
+		/**
+		 * the light shader created by this batcher
+		 * @type {GLShader}
+		 */
+		this.lightShader = undefined;
+
+		/**
+		 * the spine light shader created by this batcher
+		 * @type {GLShader}
+		 */
+		this.spineLightShader = undefined;
 
 		/**
 		 * the shader currently used by this batcher
@@ -127,6 +143,18 @@ export class Batcher {
 				settings.shader.vertex,
 				settings.shader.fragment,
 			);
+			if (settings.attributes.length > 2) {
+				this.lightShader = new GLShader(
+					this.gl,
+					quadVertexLight,
+					quadFragmentLight,
+				);
+				this.spineLightShader = new GLShader(
+					this.gl,
+					quadVertexSpineLight,
+					quadFragmentSpineLight,
+				);
+			}
 		} else {
 			throw new Error("shader definition missing");
 		}
@@ -159,6 +187,9 @@ export class Batcher {
 	 * @param {GLShader} shader - a reference to a GLShader instance
 	 */
 	useShader(shader) {
+		if (shader !== this.defaultShader) {
+			this.flush();
+		}
 		if (
 			this.currentShader !== shader ||
 			this.renderer.currentProgram !== shader.program

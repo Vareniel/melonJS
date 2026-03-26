@@ -78,6 +78,15 @@ export default class TMXObject {
 		this.type = settings.type;
 
 		/**
+		 * object inspectors eg. alpha, scale, flip
+		 * @type {object}
+		 */
+		if (settings.inspectors) {
+			this.inspectors = settings.inspectors ?? {};
+			this.inspectors.rotate = degToRad(+settings.inspectors.rotate) ?? 0;
+		}
+
+		/**
 		 * the object class
 		 * @type {string}
 		 */
@@ -165,6 +174,7 @@ export default class TMXObject {
 			this.text.fillStyle = settings.text.color || "#000000";
 			this.text.textAlign = settings.text.halign || "left";
 			this.text.textBaseline = settings.text.valign || "top";
+			this.text.rotation = degToRad(+settings.text.rotation);
 			this.text.width = this.width;
 			this.text.height = this.height;
 			// set the object properties
@@ -183,6 +193,11 @@ export default class TMXObject {
 		if (!map.isEditor) {
 			map.getRenderer().adjustPosition(this);
 		}
+		this.videoName = settings.videoName;
+		this.videoWidth = settings.videoWidth;
+		this.videoHeight = settings.videoHeight;
+		this.zAnchor = settings.zAnchor;
+		this.sortLayer = settings.sortLayer;
 	}
 
 	/**

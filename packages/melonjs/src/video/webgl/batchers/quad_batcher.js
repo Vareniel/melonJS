@@ -301,7 +301,7 @@ export default class QuadBatcher extends Batcher {
 			this.flush();
 			if (this.currentTextureUnit !== unit) {
 				this.currentTextureUnit = unit;
-				gl.activeTexture(gl.TEXTURE0 + unit);
+				gl.activeTexture(gl.TEXTURE0 + (unit % this.renderer.cache.max_size));
 			}
 
 			gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -309,7 +309,8 @@ export default class QuadBatcher extends Batcher {
 		} else if (this.currentTextureUnit !== unit) {
 			this.flush();
 			this.currentTextureUnit = unit;
-			gl.activeTexture(gl.TEXTURE0 + unit);
+			gl.bindTexture(gl.TEXTURE_2D, texture);
+			gl.activeTexture(gl.TEXTURE0 + (unit % this.renderer.cache.max_size));
 		}
 	}
 
@@ -349,7 +350,7 @@ export default class QuadBatcher extends Batcher {
 				h,
 				texture.premultipliedAlpha,
 				undefined,
-				texture2D,
+				texture2D ?? undefined,
 			);
 		} else {
 			this.bindTexture2D(texture2D, unit);
@@ -372,7 +373,20 @@ export default class QuadBatcher extends Batcher {
 	 * @param {number} tint - tint color to be applied to the texture in UINT32 (argb) format
 	 * @param {boolean} reupload - Force the texture to be reuploaded even if already bound
 	 */
-	addQuad(texture, x, y, w, h, u0, v0, u1, v1, tint, reupload = false) {
+	addQuad(
+		texture,
+		x,
+		y,
+		w,
+		h,
+		u0,
+		v0,
+		u1,
+		v1,
+		tint,
+		reupload = false,
+		texture2,
+	) {
 		const vertexData = this.vertexData;
 
 		if (vertexData.isFull(4)) {
@@ -385,9 +399,19 @@ export default class QuadBatcher extends Batcher {
 
 		// only update the fragment sampler uniform when the texture unit changes,
 		// avoiding redundant gl.uniform1i calls when consecutive quads share the same texture
-		if (unit !== this.currentSamplerUnit) {
-			this.currentShader.setUniform("uSampler", unit);
-			this.currentSamplerUnit = unit;
+		// if (unit !== this.currentSamplerUnit) {
+		this.currentShader.setUniform(
+			"uSampler",
+			unit % this.renderer.cache.max_size,
+		);
+		// this.currentSamplerUnit = unit;
+		// }
+
+		if (texture2) {
+			let unit2 = this.uploadTexture(texture2, w, h, reupload);
+
+			// set fragment sampler accordingly
+			this.currentShader.setUniform("uNormal", unit2);
 		}
 
 		// Transform vertices

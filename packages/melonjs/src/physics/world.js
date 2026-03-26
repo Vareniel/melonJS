@@ -87,6 +87,18 @@ export default class World extends Container {
 		this.bodies = new Set();
 
 		/**
+		 * The list of active lights in this stage.
+		 * (Note: Canvas Renderering mode will only properly support one light per stage)
+		 * @public
+		 * @type {Map<Light2d>}
+		 * @name lights
+		 * @memberof Stage
+		 * @see Light2d
+		 * @see Stage.ambientLight
+		 */
+		this.lights = new Map();
+
+		/**
 		 * the instance of the game world quadtree used for broadphase (used by the builtin physic and pointer event implementation)
 		 * @type {QuadTree}
 		 */
@@ -102,6 +114,8 @@ export default class World extends Container {
 		 * @type {Detector}
 		 */
 		this.detector = new Detector(this);
+		this._lastFrameContacts = new Map();
+		this._currentFrameContacts = new Map();
 
 		// reset the world container on the game reset signal
 		eventEmitter.addListener(GAME_RESET, this.reset.bind(this));
@@ -142,6 +156,9 @@ export default class World extends Container {
 		if (persistentBodies.length > 0) {
 			persistentBodies.forEach((body) => {
 				this.addBody(body);
+				if (this.broadphase && typeof this.broadphase.insert === "function") {
+					this.broadphase.insert(body);
+				}
 			});
 		}
 	}
@@ -244,6 +261,8 @@ export default class World extends Container {
 					}
 				}
 			}
+			// This should be called once per frame after all collision checks
+			this.detector.prepareNextFrame();
 		}
 		eventEmitter.emit(WORLD_STEP, dt);
 	}

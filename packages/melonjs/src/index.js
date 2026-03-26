@@ -2,7 +2,15 @@
 import "./polyfill/index.ts";
 
 import Application from "./application/application.ts";
+import { AudioGroup } from "./audio/audioGroup.ts";
+import { AudioMixer } from "./audio/audioMixer.ts";
 import Camera2d from "./camera/camera2d.ts";
+import { Ellipse } from "./geometries/ellipse.ts";
+import { Line } from "./geometries/line.ts";
+import { Point } from "./geometries/point.ts";
+import { Polygon } from "./geometries/polygon.ts";
+import { Rect } from "./geometries/rectangle.ts";
+import { RoundRect } from "./geometries/roundrect.ts";
 import { initKeyboardEvent } from "./input/keyboard.ts";
 import Pointer from "./input/pointer.ts";
 import TMXHexagonalRenderer from "./level/tiled/renderer/TMXHexagonalRenderer.js";
@@ -17,10 +25,18 @@ import TMXTileset from "./level/tiled/TMXTileset.js";
 import TMXTilesetGroup from "./level/tiled/TMXTilesetGroup.js";
 import * as TMXUtils from "./level/tiled/TMXUtils.js";
 import { setNocache } from "./loader/loader.js";
+import { Color } from "./math/color.ts";
+import { Matrix2d } from "./math/matrix2d.ts";
+import { Matrix3d } from "./math/matrix3d.ts";
+import { ObservableVector2d } from "./math/observableVector2d.ts";
+import { ObservableVector3d } from "./math/observableVector3d.ts";
+import { Vector2d } from "./math/vector2d.ts";
+import { Vector3d } from "./math/vector3d.ts";
 import ParticleEmitter from "./particles/emitter.ts";
 import Particle from "./particles/particle.ts";
 import ParticleEmitterSettings from "./particles/settings.js";
 import Body from "./physics/body.js";
+import { Bounds } from "./physics/bounds.ts";
 // class definition
 import QuadTree from "./physics/quadtree.js";
 import World from "./physics/world.js";
@@ -36,6 +52,7 @@ import ImageLayer from "./renderable/imagelayer.js";
 import Light2d from "./renderable/light2d.js";
 import NineSliceSprite from "./renderable/nineslicesprite.js";
 import Renderable from "./renderable/renderable.js";
+import { Slider } from "./renderable/slider.js";
 import Sprite from "./renderable/sprite.js";
 import BitmapText from "./renderable/text/bitmaptext.js";
 import BitmapTextData from "./renderable/text/bitmaptextdata.ts";
@@ -64,6 +81,7 @@ import { Batcher } from "./video/webgl/batchers/batcher.js";
 import PrimitiveBatcher from "./video/webgl/batchers/primitive_batcher.js";
 import QuadBatcher from "./video/webgl/batchers/quad_batcher.js";
 import GLShader from "./video/webgl/glshader.js";
+import { NoiseTexture2D } from "./video/webgl/noiseTexture2D.js";
 import ShaderEffect from "./video/webgl/shadereffect.js";
 import WebGLRenderer from "./video/webgl/webgl_renderer.js";
 
@@ -102,6 +120,8 @@ export { getPool } from "./pool.ts";
 
 // export all class definition
 export {
+	AudioGroup,
+	AudioMixer,
 	Tween,
 	QuadTree,
 	GLShader,
@@ -123,7 +143,9 @@ export {
 	ColorLayer,
 	ImageLayer,
 	Sprite,
+	Slider,
 	NineSliceSprite,
+	NoiseTexture2D,
 	UIBaseElement,
 	UITextButton,
 	UISpriteElement,
@@ -200,19 +222,69 @@ export function boot() {
 	console.log("melonJS 2 (v" + version + ") | http://melonjs.org");
 
 	// register all built-ins objects into the object legacy pool
+	pool.register("me.Entity", Entity);
+	pool.register("me.Collectable", Collectable);
+	pool.register("me.Trigger", Trigger);
+	pool.register("me.Light2d", Light2d);
+	pool.register("me.Tween", Tween, true);
+	pool.register("me.Color", Color, true);
+	pool.register("me.Particle", Particle, true);
+	pool.register("me.Sprite", Sprite);
+	pool.register("me.Slider", Slider);
+	pool.register("me.NineSliceSprite", NineSliceSprite);
+	pool.register("me.Renderable", Renderable);
+	pool.register("me.Text", Text, true);
+	pool.register("me.BitmapText", BitmapText);
+	pool.register("me.BitmapTextData", BitmapTextData, true);
+	pool.register("me.ImageLayer", ImageLayer);
+	pool.register("me.ColorLayer", ColorLayer, true);
+	pool.register("me.Vector2d", Vector2d, true);
+	pool.register("me.Vector3d", Vector3d, true);
+	pool.register("me.ObservableVector2d", ObservableVector2d, true);
+	pool.register("me.ObservableVector3d", ObservableVector3d, true);
+	pool.register("me.Matrix2d", Matrix2d, true);
+	pool.register("me.Matrix3d", Matrix3d, true);
+	pool.register("me.Rect", Rect, true);
+	pool.register("me.RoundRect", RoundRect, true);
+	pool.register("me.Polygon", Polygon, true);
+	pool.register("me.Line", Line, true);
+	pool.register("me.Point", Point, true);
+	pool.register("me.Ellipse", Ellipse, true);
+	pool.register("me.Bounds", Bounds, true);
+
+	// duplicate all entries if use with no namespace (e.g. es6)
+	pool.register("AudioGroup", AudioGroup);
+	pool.register("AudioMixer", AudioMixer);
 	pool.register("Entity", Entity);
 	pool.register("Collectable", Collectable);
 	pool.register("Trigger", Trigger);
 	pool.register("Light2d", Light2d);
+	pool.register("Tween", Tween, true);
+	pool.register("Color", Color, true);
 	pool.register("Particle", Particle, true);
 	pool.register("Sprite", Sprite);
+	pool.register("Slider", Slider);
 	pool.register("NineSliceSprite", NineSliceSprite);
 	pool.register("Renderable", Renderable);
 	pool.register("Text", Text, true);
 	pool.register("BitmapText", BitmapText);
+	pool.register("BitmapTextData", BitmapTextData, true);
 	pool.register("ImageLayer", ImageLayer);
-	pool.register("Tween", Tween, true);
 	pool.register("ColorLayer", ColorLayer, true);
+	pool.register("Vector2d", Vector2d, true);
+	pool.register("Vector3d", Vector3d, true);
+	pool.register("ObservableVector2d", ObservableVector2d, true);
+	pool.register("ObservableVector3d", ObservableVector3d, true);
+	pool.register("Matrix2d", Matrix2d, true);
+	pool.register("Matrix3d", Matrix3d, true);
+	pool.register("Rect", Rect, true);
+	pool.register("RoundRect", RoundRect, true);
+	pool.register("Polygon", Polygon, true);
+	pool.register("Line", Line, true);
+	pool.register("Point", Point, true);
+	pool.register("Ellipse", Ellipse, true);
+	pool.register("Bounds", Bounds, true);
+	pool.register("CanvasRenderTarget", CanvasRenderTarget, true);
 
 	// publish Boot notification
 	eventEmitter.emit(BOOT);

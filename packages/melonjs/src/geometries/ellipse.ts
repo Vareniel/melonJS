@@ -79,6 +79,11 @@ export class Ellipse {
 	type = "Ellipse";
 
 	/**
+	 * Whether this shape is active for collision detection and rendering
+	 */
+	isActive = true;
+
+	/**
 	 * @param x - the center x coordinate of the ellipse
 	 * @param y - the center y coordinate of the ellipse
 	 * @param w - width (diameter) of the ellipse
@@ -97,6 +102,15 @@ export class Ellipse {
 		this.setShape(x, y, w, h);
 	}
 
+	get width() {
+		const bounds = this.getBounds();
+		return bounds.max.x - bounds.min.x;
+	}
+	get height() {
+		const bounds = this.getBounds();
+		return bounds.max.y - bounds.min.y;
+	}
+
 	/**
 	 * set new value to the Ellipse shape
 	 * @param x - the center x coordinate of the ellipse
@@ -105,7 +119,7 @@ export class Ellipse {
 	 * @param h - height (diameter) of the ellipse
 	 * @returns this instance for object chaining
 	 */
-	setShape(x: number, y: number, w: number, h: number) {
+	setShape(x = this.pos.x, y = this.pos.y, w = this.width, h = this.height) {
 		const hW = w / 2;
 		const hH = h / 2;
 		const radius = Math.max(hW, hH);

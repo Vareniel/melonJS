@@ -24,6 +24,15 @@ class ResponseObject {
 		this.indexShapeA = -1;
 		this.indexShapeB = -1;
 		this.overlap = Number.MAX_VALUE;
+		this._canceled = false;
+	}
+
+	static calculatePairHash(idA, idB) {
+		if (idA < idB) {
+			return `#${idA}+${idB}`;
+		} else {
+			return `#${idB}+${idA}`;
+		}
 	}
 
 	/**
@@ -42,6 +51,14 @@ class ResponseObject {
 		this.indexShapeA = -1;
 		this.indexShapeB = -1;
 		return this;
+	}
+
+	isCanceled() {
+		return this._canceled;
+	}
+
+	cancel() {
+		this._canceled = true;
 	}
 }
 

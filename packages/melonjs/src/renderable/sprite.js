@@ -1,3 +1,4 @@
+import { video } from "../index.js";
 import { getImage } from "./../loader/loader.js";
 import { Color } from "../math/color.ts";
 import { vector2dPool } from "../math/vector2d.ts";
@@ -112,7 +113,7 @@ export default class Sprite extends Renderable {
 
 		// current frame information
 		// (reusing current, any better/cleaner place?)
-		this.current = {
+		this.current = this.currentNormal = {
 			// the current animation name
 			name: undefined,
 			// length of the current animation name
@@ -130,6 +131,12 @@ export default class Sprite extends Renderable {
 			trim: null,
 		};
 
+		if (settings.is25D) {
+			this.shader = video.renderer.currentBatcher.lightShader;
+		}
+		this._anchorOverridden =
+			(settings.anchorPoint?.x ?? 0.5) !== 0.5 ||
+			(settings.anchorPoint?.y ?? 0.5) !== 0.5;
 		// animation frame delta
 		this.dt = 0;
 
@@ -172,7 +179,7 @@ export default class Sprite extends Renderable {
 			// throw an error if image ends up being null/undefined
 			if (!this.image) {
 				throw new Error(
-					"me.Sprite: '" + settings.image + "' image/texture not found!",
+					`'${this.constructor.name}': '${settings.image}' image/texture not found!`,
 				);
 			}
 
@@ -436,6 +443,57 @@ export default class Sprite extends Renderable {
 		return counter;
 	}
 
+	addAnimationV2(name, diffuseFrames, normalFrames, animationspeed) {
+		this.anim[name] = {
+			name: name,
+			frames: [],
+			normals: [],
+			idx: 0,
+			length: 0,
+		};
+
+		// kalau atlas nggak ada, keluar
+		if (typeof this.textureAtlas !== "object") {
+			return 0;
+		}
+
+		let counter = 0;
+
+		// isi diffuse frames
+		for (let i = 0, len = diffuseFrames.length; i < len; i++) {
+			let frame = diffuseFrames[i];
+			let frameObject =
+				typeof frame === "object"
+					? frame
+					: { name: frame, delay: animationspeed || this.animationspeed };
+			this.anim[name].frames[i] = Object.assign(
+				{},
+				this.textureAtlas[this.atlasIndices[frameObject.name]],
+				frameObject,
+			);
+			counter++;
+		}
+
+		// isi normal frames (opsional)
+		if (normalFrames && normalFrames.length > 0) {
+			for (let i = 0, len = normalFrames.length; i < len; i++) {
+				let frame = normalFrames[i];
+				let frameObject =
+					typeof frame === "object"
+						? frame
+						: { name: frame, delay: animationspeed || this.animationspeed };
+				this.anim[name].normals[i] = Object.assign(
+					{},
+					this.textureAtlas[this.atlasIndices[frameObject.name]],
+					frameObject,
+				);
+			}
+		}
+
+		this.anim[name].length = counter;
+		return counter;
+	}
+
 	/**
 	 * set the current animation
 	 * this will always change the animation & set the frame to zero
@@ -474,31 +532,39 @@ export default class Sprite extends Renderable {
 	 * });
 	 */
 	setCurrentAnimation(name, resetAnim, preserve_dt = false) {
-		if (typeof this.anim[name] !== "undefined") {
-			if (!this.isCurrentAnimation(name)) {
-				this.current.name = name;
-				this.current.length = this.anim[this.current.name].length;
-				if (typeof resetAnim === "string") {
-					this.resetAnim = this.setCurrentAnimation.bind(
-						this,
-						resetAnim,
-						null,
-						true,
-					);
-				} else if (typeof resetAnim === "function") {
-					this.resetAnim = resetAnim;
-				} else {
-					this.resetAnim = undefined;
-				}
-				this.setAnimationFrame(0);
-				if (!preserve_dt) {
-					this.dt = 0;
-				}
-				this.isDirty = true;
-			}
-		} else {
-			throw new Error("animation id '" + name + "' not defined");
+		const anim = this.anim[name];
+		if (typeof anim === "undefined") {
+			throw new Error(`animation id '${name}' not defined`);
 		}
+
+		const shouldResetFrame = !this.isCurrentAnimation(name);
+
+		this.current.name = name;
+		this.current.length = anim.length;
+
+		// Handle resetAnim logic
+		if (typeof resetAnim === "string") {
+			this.resetAnim = this.setCurrentAnimation.bind(
+				this,
+				resetAnim,
+				null,
+				true,
+			);
+		} else if (typeof resetAnim === "function") {
+			this.resetAnim = resetAnim;
+		} else {
+			this.resetAnim = undefined;
+		}
+
+		if (shouldResetFrame) {
+			this.setAnimationFrame(0);
+
+			if (!preserve_dt) {
+				this.dt = 0;
+			}
+		}
+
+		this.isDirty = true;
 		return this;
 	}
 
@@ -540,7 +606,7 @@ export default class Sprite extends Renderable {
 	 * // change the sprite to "shadedDark13.png";
 	 * mySprite.setRegion(mytexture.getRegion("shadedDark13.png"));
 	 */
-	setRegion(region) {
+	setRegion(region, regionNormal) {
 		// set the source texture for the given region
 		this.image = this.source.getTexture(region);
 		// set the sprite offset within the texture
@@ -558,7 +624,7 @@ export default class Sprite extends Renderable {
 			this.width = region.sourceSize.w;
 			this.height = region.sourceSize.h;
 			// recover the original pivot relative to sourceSize for stable anchor
-			if (region.anchorPoint) {
+			if (region.anchorPoint && !this._anchorOverridden) {
 				const pivotX =
 					(region.trim.x + region.width * region.anchorPoint.x) / this.width;
 				const pivotY =
@@ -567,6 +633,16 @@ export default class Sprite extends Renderable {
 					this._flip.x ? 1 - pivotX : pivotX,
 					this._flip.y ? 1 - pivotY : pivotY,
 				);
+			}
+			if (regionNormal) {
+				this.imageNormal = this.source.getTexture(regionNormal);
+				this.currentNormal.offset.setV(regionNormal.offset);
+				// set angle if defined
+				this.currentNormal.angle =
+					typeof regionNormal.angle === "number" ? regionNormal.angle : 0;
+				// update the default "currentNormal" size
+				this.widthNormal = this.currentNormal.width = regionNormal.width;
+				this.heightNormal = this.currentNormal.height = regionNormal.height;
 			}
 		} else {
 			this.width = region.width;
@@ -599,9 +675,16 @@ export default class Sprite extends Renderable {
 	 */
 	setAnimationFrame(index = 0) {
 		this.current.idx = index % this.current.length;
-		return this.setRegion(
-			this.getAnimationFrameObjectByIndex(this.current.idx),
-		);
+		if (this.anim[this.current.name].normals) {
+			return this.setRegion(
+				this.getAnimationFrameObjectByIndex(this.current.idx),
+				this.getNormalAnimationFrameObjectByIndex(this.current.idx),
+			);
+		} else {
+			return this.setRegion(
+				this.getAnimationFrameObjectByIndex(this.current.idx),
+			);
+		}
 	}
 
 	/**
@@ -623,6 +706,16 @@ export default class Sprite extends Renderable {
 	}
 
 	/**
+	 * Returns the frame object by the index.
+	 * @ignore
+	 * @param {number} id - the frame id
+	 * @returns {number} if using number indices. Returns {object} containing frame data if using texture atlas
+	 */
+	getNormalAnimationFrameObjectByIndex(id) {
+		return this.anim[this.current.name].normals[id];
+	}
+
+	/**
 	 * update function. <br>
 	 * automatically called by the game manager {@link game}
 	 * @protected
@@ -635,7 +728,12 @@ export default class Sprite extends Renderable {
 			if (this.animationpause) {
 				this.image.pause();
 			} else if (this.image.paused) {
-				this.image.play();
+				this.image.play().catch((err) => {
+					if (!this._hasWarnedNoInteraction) {
+						console.warn(err);
+						this._hasWarnedNoInteraction = true;
+					}
+				});
 			}
 			this.isDirty = !this.image.paused;
 		} else {
@@ -749,6 +847,7 @@ export default class Sprite extends Renderable {
 			ypos, // dx,dy
 			w,
 			h, // dw,dh
+			this.imageNormal,
 		);
 	}
 

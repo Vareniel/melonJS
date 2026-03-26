@@ -6,8 +6,58 @@ import type Pointer from "./../../input/pointer.ts";
 import type { Vector2d } from "../../math/vector2d.ts";
 import { vector2dPool } from "../../math/vector2d.ts";
 import { eventEmitter, POINTERMOVE } from "../../system/event.ts";
+import pool from "../../system/legacy_pool.js";
 import timer from "../../system/timer.ts";
 import Container from "../container.js";
+import Renderable from "../renderable.js";
+import BitmapText from "../text/bitmaptext.js";
+import Text from "../text/text.js";
+import UISpriteElement from "./uispriteelement.ts";
+
+interface LayerInspectors {
+	alpha?: number;
+	flip?: { x: boolean; y: boolean };
+	rotate?: number;
+	scale?: { x: number; y: number };
+}
+
+interface Layer {
+	type: string;
+	x: number | string;
+	y: number | string;
+	name: string;
+	objectName?: string;
+	inspectors?: LayerInspectors;
+	family?: string;
+	size?: number;
+	color?: string;
+	text?: string;
+	lineHeight?: number;
+	boxWidth?: number;
+	boxHeight?: number;
+	rotation?: number;
+	textAlign?: string;
+	textBaseline?: string;
+	customFont?: boolean;
+	imgData?: string;
+	fntData?: string;
+	fontFamily?: string;
+	align?: string;
+	baseline?: string;
+	width?: number;
+	height?: number;
+	alpha?: number;
+	imageName?: string;
+	imageClickName?: string;
+	clickAlpha?: number;
+	releaseAlpha?: number;
+	overAlpha?: number;
+	outAlpha?: number;
+	scriptClickName?: string;
+	scriptFunc?: string;
+	videoName?: string;
+	region?: string;
+}
 
 /**
  * This is a basic clickable and draggable container which you can use in your game UI.
@@ -62,10 +112,12 @@ export default class UIBaseElement extends Container {
 	released: boolean;
 
 	// object has been updated (clicked,etc..)
-	holdTimeout: number;
+	holdTimeout: ReturnType<typeof setTimeout> | number;
 
 	// grab offset for dragging
 	grabOffset: Vector2d | undefined;
+	bgColor: any;
+	transparancy: number;
 
 	/**
 	 * @param x - The x position of the container
@@ -103,7 +155,7 @@ export default class UIBaseElement extends Container {
 			this.isDirty = true;
 			this.released = false;
 			if (this.isHoldable) {
-				timer.clearTimer(this.holdTimeout);
+				timer.clearTimer(this.holdTimeout as number);
 				this.holdTimeout = timer.setTimeout(
 					() => {
 						this.hold();
@@ -215,7 +267,7 @@ export default class UIBaseElement extends Container {
 		if (!this.released) {
 			this.released = true;
 			this.isDirty = true;
-			timer.clearTimer(this.holdTimeout);
+			timer.clearTimer(this.holdTimeout as number);
 			this.holdTimeout = -1;
 			return this.onRelease(event);
 		}
@@ -236,7 +288,7 @@ export default class UIBaseElement extends Container {
 	 * @ignore
 	 */
 	hold(): void {
-		timer.clearTimer(this.holdTimeout);
+		timer.clearTimer(this.holdTimeout as number);
 		this.holdTimeout = -1;
 		this.isDirty = true;
 		if (!this.released) {
@@ -287,7 +339,7 @@ export default class UIBaseElement extends Container {
 		releasePointerEvent("pointercancel", this);
 		releasePointerEvent("pointerenter", this);
 		releasePointerEvent("pointerleave", this);
-		timer.clearTimer(this.holdTimeout);
+		timer.clearTimer(this.holdTimeout as number);
 		this.holdTimeout = -1;
 
 		// unregister on the global pointermove event
@@ -304,5 +356,150 @@ export default class UIBaseElement extends Container {
 
 		// call the parent function
 		super.onDeactivateEvent();
+	}
+
+	override draw(renderer: any, viewport: any): void {
+		if (this.bgColor) {
+			/* Handle global alpha biar hanya berefek ke parent saja tidak ke anak anaknya */
+			renderer.setGlobalAlpha(this.transparancy || this.alpha);
+			renderer.setColor(this.bgColor);
+			renderer.fillRect(this.x, this.y, this.width, this.height);
+			renderer.setGlobalAlpha(1);
+		}
+		super.draw(renderer, viewport);
+	}
+
+	/**
+	 * Menambahkan children ke container secara dinamis berdasarkan data layers
+	 * @param layers - Data layers dari editor
+	 * @param game - Instance dari game untuk akses ke pool dan texture atlas
+	 */
+	_addEditorChild(layers: Layer[], game: any): void {
+		if (!layers || !Array.isArray(layers)) return;
+
+		layers.forEach((layer: Layer) => {
+			let child: any;
+			layer.x = Number(layer.x);
+			layer.y = Number(layer.y);
+
+			if (layer.type === "objectgroup") {
+				child = pool.pull(layer.objectName ?? "Renderable", layer.x, layer.y);
+
+				if (layer.inspectors) {
+					const ins = layer.inspectors;
+					child.alpha = ins.alpha;
+					child.flipX(ins.flip?.x);
+					child.flipY(ins.flip?.y);
+					child.rotate(((ins.rotate ?? 0) * Math.PI) / 180);
+					child.scale(ins.scale?.x, ins.scale?.y);
+					child._scaleX = ins.scale?.x;
+					child._scaleY = ins.scale?.y;
+				}
+			} else if (layer.type === "videolayer") {
+				const ins = structuredClone(layer.inspectors) || {};
+				ins.scale = { x: 1, y: 1 };
+				child = pool.pull("videoSpriteTP", layer.x, layer.y, {
+					inspectors: ins,
+					videoName: layer.videoName,
+				});
+				child.rotate(((ins.rotate ?? 0) * Math.PI) / 180);
+				child.scale(layer.inspectors?.scale?.x, layer.inspectors?.scale?.y);
+			} else if (layer.type === "imagelayer") {
+				const ins = structuredClone(layer.inspectors) || {};
+				ins.scale = { x: 1, y: 1 };
+				child = pool.pull("spriteTP", layer.x, layer.y, {
+					inspectors: ins,
+					texture: "image",
+					region: layer.name,
+				});
+				child.rotate(((ins.rotate ?? 0) * Math.PI) / 180);
+				child.scale(layer.inspectors?.scale?.x, layer.inspectors?.scale?.y);
+			} else if (layer.type === "text") {
+				child = new Text(layer.x, layer.y, {
+					font: layer.family || "Arial",
+					size: layer.size || 1,
+					fillStyle: layer.color,
+					text: layer.text,
+					anchorPoint: { x: 0, y: 0 },
+					lineHeight: (layer.lineHeight ?? 0) / (layer.size ?? 1),
+					wordWrapWidth: layer.boxWidth,
+					wordWrapHeight: layer.boxHeight,
+					textAlign: layer.textAlign || "left",
+					textBaseline: layer.textBaseline || "top",
+				});
+				child.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+			} else if (layer.type === "bitmap-text") {
+				child = new BitmapText(layer.x, layer.y, {
+					text: layer.text,
+					fillStyle: layer.color,
+					anchorPoint: { x: 0, y: 0 },
+					font: layer.customFont
+						? (layer.imgData ?? "Arial")
+						: (layer.fontFamily ?? "Arial"),
+					fontData: layer.customFont ? layer.fntData : layer.fontFamily,
+					size: layer.size,
+					textAlign: layer.align || "left",
+					textBaseline: layer.baseline || "top",
+					lineHeight: (layer.lineHeight ?? 0) / (layer.size ?? 1),
+					rotation: layer.rotation ?? 0,
+				});
+			} else if (layer.type === "nineslicesprite") {
+				child = game.texture.createSpriteFromName(layer.name, {
+					width: layer.width,
+					height: layer.height,
+					anchorPoint: { x: 0, y: 0 },
+				});
+				child.pos.set(layer.x || 0, layer.y || 0);
+			} else if (layer.type === "backgroundlayer") {
+				child = new Renderable(0, 0, layer.width ?? 1, layer.height ?? 1);
+				child.anchorPoint.set(0, 0);
+				child.alpha = layer.alpha;
+				child.draw = function (renderer: any) {
+					renderer.setColor(layer.color);
+					renderer.fillRect(0, 0, this.width, this.height);
+				};
+			} else if (layer.type === "spritebutton") {
+				child = new UISpriteElement(layer.x, layer.y, {
+					image: game.texture,
+					region: layer.imageName,
+					anchorPoint: { x: 0, y: 0 },
+				});
+
+				child.alpha = layer.alpha;
+				child.clicked_region = game.texture.getRegion(layer.imageClickName);
+				child.unclicked_region = game.texture.getRegion(layer.imageName);
+
+				child.onClick = function () {
+					this.alpha = layer.clickAlpha;
+					this.translate(0, this.height - this.clicked_region.height);
+					this.setRegion(this.clicked_region);
+
+					if (
+						layer.scriptClickName &&
+						game.scriptHandlers[layer.scriptClickName]
+					) {
+						game.scriptHandlers[layer.scriptClickName][layer.scriptFunc!]();
+					}
+				};
+
+				child.onRelease = function () {
+					this.alpha = layer.releaseAlpha;
+					this.setRegion(this.unclicked_region);
+					this.translate(0, -(this.height - this.clicked_region.height));
+				};
+
+				child.onOver = function () {
+					this.alpha = layer.overAlpha;
+				};
+				child.onOut = function () {
+					this.alpha = layer.outAlpha;
+				};
+			}
+
+			if (child) {
+				child.name = layer.name;
+				this.addChild(child);
+			}
+		});
 	}
 }

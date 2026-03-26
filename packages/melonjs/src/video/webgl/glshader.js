@@ -1,3 +1,4 @@
+import { game } from "../../index.js";
 import { eventEmitter, ONCONTEXT_LOST } from "../../system/event.ts";
 import { extractAttributes } from "./utils/attributes.js";
 import { getMaxShaderPrecision, setPrecision } from "./utils/precision.js";
@@ -171,5 +172,38 @@ export default class GLShader {
 
 		this.vertex = null;
 		this.fragment = null;
+	}
+
+	/**
+	 * initiate melon editor shader
+	 */
+	_setEditorShader(object) {
+		object.shader.setUniform("ME_offset", [
+			object.current.offset.x,
+			object.current.offset.y,
+		]);
+		object.shader.setUniform("ME_size_obj", [
+			object.current.width,
+			object.current.height,
+		]);
+		object.shader.setUniform("ME_size_img", [
+			object.image.width,
+			object.image.height,
+		]);
+		object.shader.setUniform("ME_size_screen", [
+			object.image.width,
+			object.image.height,
+		]);
+		object.shader.setUniform("ME_scale_screen", [object.scaleX, object.scaleX]);
+		object.shader.setUniform("ME_pos_obj", [object.pos.x, object.pos.y]);
+		object.shader.setUniform("ME_pos_world", [
+			game.viewport.x,
+			game.viewport.y,
+		]);
+		object.shader.setUniform("ME_size_world", [
+			game.viewport.width,
+			game.viewport.height,
+		]);
+		object.shader.setUniform("TIME", [performance.now() / 1000]);
 	}
 }

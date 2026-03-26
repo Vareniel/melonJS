@@ -1,6 +1,7 @@
 import Camera2d from "./../camera/camera2d.ts";
 import { Color } from "./../math/color.ts";
 import { eventEmitter, STAGE_RESET } from "../system/event.ts";
+import timer from "../system/timer.ts";
 import { renderer } from "./../video/video.js";
 
 // a default camera instance to use across all stages
@@ -216,6 +217,7 @@ export default class Stage {
 	 * @memberof Stage
 	 */
 	onDestroyEvent() {
+		timer.onDestroy();
 		// execute onDestroyEvent function if given through the constructor
 		if (typeof this.settings.onDestroyEvent === "function") {
 			this.settings.onDestroyEvent.apply(this, arguments);

@@ -84,23 +84,20 @@ export default class Particle extends Renderable {
 		this.vel.set(speed * Math.cos(angle), -speed * Math.sin(angle));
 
 		// Set the start particle Time of Life as defined in emitter
-		this.life = randomFloat(emitter.settings.minLife, emitter.settings.maxLife);
+		this.life = emitter.settings.lifeTime;
 		this.startLife = this.life;
 
 		// Set the start and end particle Scale as defined in emitter
 		// clamp the values as minimum and maximum scales range
 		this.startScale = clamp(
-			randomFloat(
-				emitter.settings.minStartScale,
-				emitter.settings.maxStartScale,
-			),
-			emitter.settings.minStartScale,
-			emitter.settings.maxStartScale,
+			randomFloat(emitter.settings.startScale, emitter.settings.startScale),
+			emitter.settings.startScale,
+			emitter.settings.startScale,
 		);
 		this.endScale = clamp(
-			randomFloat(emitter.settings.minEndScale, emitter.settings.maxEndScale),
-			emitter.settings.minEndScale,
-			emitter.settings.maxEndScale,
+			randomFloat(emitter.settings.endScale, emitter.settings.endScale),
+			emitter.settings.endScale,
+			emitter.settings.endScale,
 		);
 
 		// Set the particle Gravity and Wind (horizontal gravity) as defined in emitter
@@ -125,6 +122,9 @@ export default class Particle extends Renderable {
 			);
 		}
 
+		this.anchorPoint.set(0.5, 0.5);
+		this.updateBounds();
+
 		this.alive = true;
 	}
 
@@ -141,12 +141,9 @@ export default class Particle extends Renderable {
 		// Decrease particle life
 		this.life = this.life > dt ? this.life - dt : 0;
 
-		if (this.alive && this.life <= 0) {
+		if (this.life <= 0) {
 			const parent = this.ancestor as Container;
-			// use true for keepalive since we recycle the instance directly here after
-			parent.removeChild(this, true);
-			particlePool.release(this);
-			this.alive = false;
+			parent.removeChild(this);
 			return false;
 		}
 
@@ -155,13 +152,9 @@ export default class Particle extends Renderable {
 
 		// Resize the particle as particle Age Ratio
 		let scale = this.startScale;
-		if (this.startScale > this.endScale) {
-			scale *= ageRatio;
-			scale = scale < this.endScale ? this.endScale : scale;
-		} else if (this.startScale < this.endScale) {
-			scale /= ageRatio;
-			scale = scale > this.endScale ? this.endScale : scale;
-		}
+		const scaleMultiplier =
+			this.startScale + (this.endScale - this.startScale) * (1 - ageRatio);
+		scale *= scaleMultiplier;
 
 		// Set the particle opacity as Age Ratio
 		this.alpha = ageRatio;
@@ -178,10 +171,8 @@ export default class Particle extends Renderable {
 		this.pos.x += this.vel.x * skew;
 		this.pos.y += this.vel.y * skew;
 
-		// Update particle transform
-		this.currentTransform
-			.setTransform(scale, 0, 0, 0, scale, 0, this.pos.x, this.pos.y, 1)
-			.rotate(angle);
+		this.currentTransform.identity().scale(scale, scale).rotate(angle);
+		this.updateBounds();
 
 		// mark as dirty if the particle is not dead yet
 		this.isDirty = this.inViewport || !this.onlyInViewport;
@@ -195,7 +186,12 @@ export default class Particle extends Renderable {
 	override draw(renderer: CanvasRenderer | WebGLRenderer) {
 		const w = this.width;
 		const h = this.height;
-		renderer.drawImage(this.image, 0, 0, w, h, -w / 2, -h / 2, w, h);
+		renderer.drawImage(this.image, 0, 0, w, h, this.pos.x, this.pos.y, w, h);
+	}
+
+	override destroy() {
+		const parent = this.ancestor as Container;
+		parent.removeChild(this);
 	}
 }
 

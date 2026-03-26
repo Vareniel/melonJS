@@ -1,4 +1,4 @@
-import { game } from "../index.js";
+import { game, ParticleEmitter } from "../index.js";
 import { colorPool } from "../math/color.ts";
 import Body from "../physics/body.js";
 import state from "../state/state.ts";
@@ -756,7 +756,7 @@ export default class Container extends Renderable {
 			// note : we use an inverted loop
 			children.splice(0, 0, children.splice(childIndex, 1)[0]);
 			// increment our child z value based on the previous child depth
-			child.pos.z = children[1].pos.z + 1;
+			child.pos.z = children[1].pos?.z + 1;
 			// mark the container as dirty
 			this.isDirty = true;
 		}
@@ -958,7 +958,7 @@ export default class Container extends Renderable {
 			if (obj.isRenderable) {
 				isFloating = obj.floating === true;
 
-				if (obj.inViewport || isFloating) {
+				if (obj.inViewport || isFloating || obj instanceof ParticleEmitter) {
 					if (isFloating) {
 						// translate to screen coordinates
 						renderer.save();

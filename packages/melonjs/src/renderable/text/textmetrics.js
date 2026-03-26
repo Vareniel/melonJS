@@ -117,8 +117,8 @@ class TextMetrics extends Bounds {
 			this.ancestor.textBaseline.search(/^(top|hanging)$/) === 0
 				? this.ancestor.pos.y
 				: this.ancestor.textBaseline === "middle"
-					? this.ancestor.pos.y - this.lineHeight() / 2
-					: this.ancestor.pos.y - this.lineHeight(),
+					? this.ancestor.pos.y - this.height / 2 // Gunakan total height
+					: this.ancestor.pos.y - this.height, // Gunakan total height untuk bottom/alphabetic
 		);
 
 		if (typeof context !== "undefined") {
@@ -137,40 +137,45 @@ class TextMetrics extends Bounds {
 	 * @returns {string[]} an array of string representing wrapped text
 	 */
 	wordWrap(text, width, context) {
-		let currentLine = "";
-		const output = [];
-
 		if (Array.isArray(text)) {
-			// join into a single string
-			text = text.join(" ");
+			text = text.join("\n"); // Join dengan \n, bukan spasi, agar baris terjaga
 		}
-		// word splitting to be improved as it replaces \n by space if present
-		const words = text.replace(/[\r\n]+/g, " ").split(" ");
 
 		if (typeof context !== "undefined") {
-			// save the previous context
 			context.save();
-
-			// apply the style font
 			setContextStyle(context, this.ancestor);
 		}
 
-		for (let i = 0; i < words.length; i++) {
-			const word = words[i];
-			const lineWidth = this.lineWidth(currentLine + word + " ", context);
-			if (lineWidth < width) {
-				// add the word to the current line
-				currentLine += word + " ";
-			} else {
-				output.push(currentLine + "\n");
-				currentLine = word + " ";
+		let output = [];
+
+		// Ini menjaga agar Enter yang diketik user tidak hilang
+		let paragraphs = text.split("\n");
+
+		for (let p = 0; p < paragraphs.length; p++) {
+			let words = paragraphs[p].split(" ");
+			let currentLine = words[0]; // Mulai dengan kata pertama
+
+			for (let i = 1; i < words.length; i++) {
+				let word = words[i];
+				// Cek lebar: CurrentLine + Spasi + Word
+				// Kita hanya menghitung spasi antar kata, bukan spasi di akhir
+				let testLine = currentLine + " " + word;
+				let testWidth = this.lineWidth(testLine, context);
+
+				if (testWidth <= width) {
+					// Jika muat, tambahkan ke baris ini
+					currentLine = testLine;
+				} else {
+					// Jika tidak muat, push baris lama, dan mulai baris baru dengan kata ini
+					output.push(currentLine);
+					currentLine = word;
+				}
 			}
+			// Push sisa baris terakhir dari paragraf ini
+			output.push(currentLine);
 		}
-		// last line
-		output.push(currentLine);
 
 		if (typeof context !== "undefined") {
-			// restore the context
 			context.restore();
 		}
 

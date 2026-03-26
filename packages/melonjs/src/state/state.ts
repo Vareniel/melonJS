@@ -1,5 +1,5 @@
 import { pauseTrack, resumeTrack } from "./../audio/audio.ts";
-import { game } from "../index.js";
+import { game, level, timer } from "../index.js";
 import DefaultLoadingScreen from "./../loader/loadingscreen.js";
 import Stage from "./../state/stage.js";
 import {
@@ -264,6 +264,9 @@ const state = {
 
 			// publish the pause event
 			eventEmitter.emit(STATE_PAUSE);
+
+			// pause native timer like setTimeout or setInterval
+			timer.pauseNative();
 		}
 	},
 
@@ -306,6 +309,9 @@ const state = {
 
 			// publish the resume event
 			eventEmitter.emit(STATE_RESUME, _pauseTime);
+
+			// resume native timer like setTimeout or setInterval
+			timer.resumeNative();
 		}
 	},
 
@@ -491,6 +497,18 @@ const state = {
 	 */
 	isCurrent(stateId: number): boolean {
 		return _state === stateId;
+	},
+
+	/**
+	 * return the running state of the state manager
+	 */
+	restartLevel() {
+		// currently use this to restart the level. *you can use me.level.getCurrentLevel().name
+		defer(
+			_switchState as unknown as (...args: unknown[]) => unknown,
+			this,
+			level.getCurrentLevel().name,
+		);
 	},
 };
 export default state;

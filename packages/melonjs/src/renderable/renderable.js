@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:stream";
 import { ObservablePoint } from "../geometries/observablePoint.ts";
 import { Rect } from "./../geometries/rectangle.ts";
 import { releaseAllPointerEvents } from "./../input/input.ts";
@@ -39,6 +40,9 @@ export default class Renderable extends Rect {
 	constructor(x, y, width, height) {
 		// parent constructor
 		super(x, y, width, height);
+
+		this.id = Renderable._ID++;
+		this.events = new EventEmitter();
 
 		/**
 		 * Position of the Renderable relative to its parent container
@@ -326,6 +330,22 @@ export default class Renderable extends Rect {
 
 		// ensure it's fully opaque by default
 		this.setOpacity(1.0);
+
+		this._scaleX = 1;
+		this._scaleY = 1;
+	}
+
+	emit(eventName, event) {
+		this.events.emit(eventName, event);
+	}
+	on(eventName, handler) {
+		return this.events.on(eventName, handler);
+	}
+	once(eventName, handler) {
+		return this.events.once(eventName, handler);
+	}
+	off(eventName, handler) {
+		this.events.off(eventName, handler);
 	}
 
 	/**
@@ -425,6 +445,34 @@ export default class Renderable extends Rect {
 		return this._flip.y === true;
 	}
 
+	get scaleX() {
+		return this._scaleX ?? 1;
+	}
+	set scaleX(v) {
+		this._setScale(v, this.scaleY);
+	}
+
+	get scaleY() {
+		return this._scaleY ?? 1;
+	}
+	set scaleY(v) {
+		this._setScale(this.scaleX, v);
+	}
+
+	_setScale(x, y = x) {
+		this._scaleX = x;
+		this._scaleY = y;
+
+		this.currentTransform.identity();
+		if (this._rotation) {
+			this.currentTransform.rotate(this._rotation);
+		}
+		this.currentTransform.scale(x, y);
+
+		this.updateBounds();
+		this.isDirty = true;
+	}
+
 	/**
 	 * returns the bounding box for this renderable
 	 * @returns {Bounds} bounding box Rectangle object
@@ -471,8 +519,62 @@ export default class Renderable extends Rect {
 	 * @param {boolean} [flip=true] - `true` to flip this renderable.
 	 * @returns {Renderable} Reference to this object for method chaining
 	 */
-	flipX(flip = true) {
+	flipX(flip = true, withCollision = false) {
 		this._flip.x = !!flip;
+		if (this.body && withCollision && this.body.shapes.length > 0) {
+			if (this.initialShapes === undefined) {
+				this.initialShapes = this.body.shapes.map((s) => {
+					return {
+						posX: s.pos.x,
+						posY: s.pos.y,
+						points: s.points
+							? s.points.map((p) => {
+									return { x: p.x, y: p.y };
+								})
+							: null,
+					};
+				});
+			}
+
+			const anchorX =
+				this.anchorPoint && typeof this.anchorPoint.x === "number"
+					? this.anchorPoint.x
+					: 0;
+			const pivotOffset = this.width * (1 - 2 * anchorX);
+
+			this.body.bounds.clear();
+			this.body.shapes.forEach((s, index) => {
+				const original = this.initialShapes[index];
+
+				if (flip) {
+					s.pos.x = pivotOffset - original.posX;
+					if (original.points) {
+						s.points.forEach((p, i) => {
+							p.x = original.points[i].x * -1;
+						});
+					}
+				} else {
+					s.pos.x = original.posX;
+					if (original.points) {
+						s.points.forEach((p, i) => {
+							p.x = original.points[i].x;
+						});
+					}
+				}
+				if (s.points) {
+					this.body.bounds.add(s.points);
+					this.body.bounds.translate(s.pos);
+				} else if (typeof s.getBounds === "function") {
+					this.body.bounds.addBounds(s.getBounds());
+
+					// if (s.type === "Ellipse") {this.body.bounds.translate(s.pos);}
+				}
+			});
+
+			if (typeof this.body.onBodyUpdate === "function") {
+				this.body.onBodyUpdate(this.body);
+			}
+		}
 		this.isDirty = true;
 		return this;
 	}
@@ -483,8 +585,59 @@ export default class Renderable extends Rect {
 	 * @param {boolean} [flip=true] - `true` to flip this renderable.
 	 * @returns {Renderable} Reference to this object for method chaining
 	 */
-	flipY(flip = true) {
+	flipY(flip = true, withCollision = false) {
 		this._flip.y = !!flip;
+		if (this.body && withCollision && this.body.shapes.length > 0) {
+			if (this.initialShapes === undefined) {
+				this.initialShapes = this.body.shapes.map((s) => {
+					return {
+						posX: s.pos.x,
+						posY: s.pos.y,
+						points: s.points
+							? s.points.map((p) => {
+									return { x: p.x, y: p.y };
+								})
+							: null,
+					};
+				});
+			}
+
+			const anchorY =
+				this.anchorPoint && typeof this.anchorPoint.y === "number"
+					? this.anchorPoint.y
+					: 0;
+			const pivotOffsetY = this.height * (1 - 2 * anchorY);
+
+			this.body.bounds.clear();
+			this.body.shapes.forEach((s, index) => {
+				const original = this.initialShapes[index];
+				if (flip) {
+					s.pos.y = pivotOffsetY - original.posY;
+					if (original.points) {
+						s.points.forEach((p, i) => {
+							p.y = original.points[i].y * -1;
+						});
+					}
+				} else {
+					s.pos.y = original.posY;
+					if (original.points) {
+						s.points.forEach((p, i) => {
+							p.y = original.points[i].y;
+						});
+					}
+				}
+				if (s.points) {
+					this.body.bounds.add(s.points);
+					this.body.bounds.translate(s.pos);
+				} else if (typeof s.getBounds === "function") {
+					this.body.bounds.addBounds(s.getBounds());
+				}
+			});
+
+			if (typeof this.body.onBodyUpdate === "function") {
+				this.body.onBodyUpdate(this.body);
+			}
+		}
 		this.isDirty = true;
 		return this;
 	}
@@ -596,6 +749,15 @@ export default class Renderable extends Rect {
 	 */
 	scale(x, y = x) {
 		this.currentTransform.scale(x, y);
+		this.updateBounds();
+		this.isDirty = true;
+		return this;
+	}
+
+	resizeObject(w, h = w) {
+		let currentHeight = this.current.height;
+		let currentWidth = this.current.width;
+		this.currentTransform.resizeObject(w, h, currentHeight, currentWidth);
 		this.updateBounds();
 		this.isDirty = true;
 		return this;
@@ -814,6 +976,52 @@ export default class Renderable extends Rect {
 	}
 
 	/**
+	 * onCollisionStart callback, triggered in case of collision,
+	 * when this renderable body is colliding with another one
+	 * @param {Renderable} self - the renderable who touch something
+	 * @param {Renderable} other - the other renderable touching this one (a reference to response.a or response.b)
+	 * @returns {boolean} true if the object should respond to the collision (its position and velocity will be corrected)
+	 * @example
+	 * // colision handler
+	 * onCollisionStart(self, other) {
+	 *     if (other.body.collisionType === me.collision.types.ENEMY_OBJECT) {
+	 *         self.hurtEnemy(); // or this.hurtEnemy();
+	 *
+	 *         // not solid
+	 *         return false;
+	 *     }
+	 *     // Make the object solid
+	 *     return true;
+	 * },
+	 */
+	onCollisionStart() {
+		// do smth
+	}
+
+	/**
+	 * onCollisionEnd callback, triggered in case of collision,
+	 * when this renderable body is colliding with another one
+	 * @param {Renderable} self - the renderable who touch something
+	 * @param {Renderable} other - the other renderable touching this one (a reference to response.a or response.b)
+	 * @returns {boolean} true if the object should respond to the collision (its position and velocity will be corrected)
+	 * @example
+	 * // colision handler
+	 * onCollisionEnd(self, other) {
+	 *     if (other.body.collisionType === me.collision.types.ENEMY_OBJECT) {
+	 *         self.leaveEnemy(); // or this.leaveEnemy();
+	 *
+	 *         // not solid
+	 *         return false;
+	 *     }
+	 *     // Make the object solid
+	 *     return true;
+	 * },
+	 */
+	onCollisionEnd() {
+		// do smth
+	}
+
+	/**
 	 * Destroy function<br>
 	 * @ignore
 	 */
@@ -885,3 +1093,5 @@ export default class Renderable extends Rect {
 		// to be extended !
 	}
 }
+
+Renderable._ID = 0;

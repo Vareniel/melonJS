@@ -133,7 +133,8 @@ class TextureCache {
 	 * return the textureAltas for the given image
 	 */
 	get(image, atlas) {
-		let entry = this.cache.get(image)[0];
+		let hasKey = this.cache.has(image);
+		let entry = hasKey ? this.cache.get(image)[0] : undefined;
 
 		if (typeof entry !== "undefined" && typeof atlas !== "undefined") {
 			this.cache.forEach((value, key) => {
