@@ -3,18 +3,27 @@
 ## [18.2.0] (melonJS 2)
 
 ### Added
+- Camera2d: added proper multi-camera support
+- Platformer example: minimap camera showing a zoomed-out view of the full level with viewport highlight and player marker
+- TMX: support Tiled 1.8+ native `repeatx`/`repeaty` attributes on image layers (with fallback to legacy custom `repeat` property)
+- TMX: support Tiled 1.8+ `parallaxoriginx`/`parallaxoriginy` map attributes
+- TMX: support Tiled 1.8+ class-type custom properties (`type="class"` with nested properties)
+- TMX: use Tiled 1.10+ `isCollection` tileset flag when available (fallback to image detection for older maps)
+- TMX: support Tiled 1.12+ per-object opacity and visibility
 
 ### Changed
 - TypeScript: convert leaf modules to TypeScript — plugin, camera, particles emitter, state, audio
 - TypeScript: convert application, input, and UI modules to TypeScript — application, header, resize, input, pointer, pointerevent, gamepad, uibaseelement, uispriteelement, uitextbutton
 
 ### Fixed
+- CanvasRenderer: replace bezier ellipse approximation with native `context.ellipse()` (with polyfill for older browsers)
 - Plugin: fix `plugin.get()` throwing `TypeError` when searching by name with no match (instanceof on string)
 - Events: fix duplicate `BLUR` entry in Events interface (was missing `FOCUS`)
 - UIBaseElement: fix `isDraggable` JSDoc (was incorrectly saying "clicked"), fix `released` default (was `false`, should be `true`)
 - UITextButton: fix `bindKey` settings type from `string` to `string | number`
 - Application: fix constructor `options` parameter not being optional
 - Application: fix `getUriFragment()` unsafe cast by making `url` parameter optional
+- CanvasRenderer: `setProjection()` now properly applies the projection matrix as a canvas 2D transform
 
 ### Performance
 
